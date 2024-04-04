@@ -1,0 +1,137 @@
+import cv2
+import imutils
+import numpy as np
+import pytesseract
+from PIL import Image, ImageEnhance, ImageFilter
+import easyocr
+
+pytesseract.pytesseract.tesseract_cmd = r'd:\Program\Tesseract-OCR\tesseract'
+
+# Param
+max_size = 5000
+min_size = 200
+
+# Load image
+img = cv2.imread('test6.jpg', cv2.IMREAD_COLOR)
+# img = cv2.imread('test.jpg', cv2.IMREAD_COLOR)
+
+# Check if image is loaded successfully
+if img is None:
+    print("Error: Image not loaded properly!")
+
+# Resize image
+# img = cv2.resize(img, (620, 480))
+
+# Show resized image
+# cv2.imshow('Resized image', img)
+# cv2.waitKey(0)
+# cv2.destroyAllWindows()
+
+# Edge detection
+gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)  # convert to grey scale
+gray = cv2.bilateralFilter(gray, 11, 17, 17)  # Blur to reduce noise
+edged = cv2.Canny(gray, 30, 200)  # Perform Edge detection
+# show the image after edge detection
+# print(edged)
+
+# find contours in the edged image, keep only the largest
+# ones, and initialize our screen contour
+cnts = cv2.findContours(edged.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+cnts = imutils.grab_contours(cnts)
+cnts = sorted(cnts, key=cv2.contourArea, reverse=True)
+screenCnt = None
+
+# loop over our contours
+for c in cnts:
+    # approximate the contour
+    peri = cv2.arcLength(c, True)
+    approx = cv2.approxPolyDP(c, 0.05 * peri, True) # 
+    # if our approximated contour has four points, then
+    # print(len(approx))
+    # print(cv2.contourArea(c))
+    # we can assume that we have found our screen
+    if len(approx) == 4 and max_size > cv2.contourArea(c) > min_size:
+        screenCnt = approx
+        break
+
+if screenCnt is None:
+    detected = 0
+    print ("No plate detected")
+else:
+    detected = 1
+
+if detected == 1:
+    cv2.drawContours(img, [screenCnt], -1, (0, 255, 0), 3)
+
+    # Masking the part other than the number plate
+    mask = np.zeros(gray.shape, np.uint8)
+    new_image = cv2.drawContours(mask, [screenCnt], 0, 255, -1, )
+    new_image = cv2.bitwise_and(img, img, mask=mask)
+
+    # Now crop
+    (x, y) = np.where(mask == 255)
+    (topx, topy) = (np.min(x), np.min(y))
+    (bottomx, bottomy) = (np.max(x), np.max(y))
+    Cropped = gray[topx:bottomx + 1, topy:bottomy + 1]
+    # Cropped = gray[topx + 2 : bottomx - 2, topy + 3 : bottomy - 2]
+
+    # Work but terrably slow
+    # # Apply OCR on the cropped image
+
+    # # # scale the CroppedImg to 300 dpi
+    # CroppedImg = CroppedImg.resize((CroppedImg.width*5, CroppedImg.height*5), Image.Resampling.LANCZOS)
+
+
+
+    CroppedResized = cv2.resize(Cropped, (Cropped.shape[1]*4, Cropped.shape[0]*4))
+    img_blurred = cv2.GaussianBlur(CroppedResized, (13, 7), 0)
+    img_thresh = cv2.adaptiveThreshold(img_blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1,1))
+    img_diag = cv2.dilate(img_thresh, kernel, iterations=1)
+    img_erode = cv2.erode(img_diag, kernel, iterations=1)
+    img_final = cv2.bitwise_not(img_erode)
+    CroppedImg = Image.fromarray(img_final)
+    CroppedImg.show()
+
+    reader = easyocr.Reader(['en'])
+    result = reader.readtext(img_final, detail=0, paragraph=True)
+    print(result)
+
+
+    # custom_config = r'--psm 6 tessedit_char_whitelist=0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-'
+    # # # # # custom_config = r'--psm 6 -l eng --dpi 300 -c tessedit_char_whitelist=0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-'
+    # # # # # # apply OCR on the cropped image
+    # text = pytesseract.image_to_string(CroppedImg, config = custom_config)
+    # print("Recognized Number is:", text)
+
+
+    # Apply OCR on the cropped image
+    # text = pytesseract.image_to_string(Cropped, config='--psm 3')
+
+    # # Print the recognized text
+    # print("Recognized text:", text)
+
+    # Display image
+    # cv2.imshow('Input image', img)
+    # cv2.imshow('License plate', Cropped)
+
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
+
+
+
+    # # conver crop to an image
+    # CroppedImg = Image.fromarray(Cropped)
+
+        # # dpi = CroppedImg.info.get('dpi')
+    # # print(dpi)
+    # # preprocess the cromped image
+    # CroppedImg = CroppedImg.filter(ImageFilter.MedianFilter())
+    # enhancer = ImageEnhance.Contrast(CroppedImg)
+    # CroppedImg = enhancer.enhance(3)
+    # print(CroppedImg.size)
+
+
+    # CroppedImg = CroppedImg.convert('1')
+    # CroppedImg.save('temp.jpg')
+    # CroppedImg.show()
