@@ -1,0 +1,7 @@
+names: ["Left_Sign", "Right_Sign", "Stop_Sign"]
+nc: 3
+path: D:\Python code\Computer Vision\sign_detect\data
+
+test: test/images
+train: train/images
+val: val/images

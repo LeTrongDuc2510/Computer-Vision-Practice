@@ -1,0 +1,21 @@
+{
+  "categories": [
+    {
+      "id": 0,
+      "name": "Left_Sign"
+    },
+    {
+      "id": 1,
+      "name": "Right_Sign"
+    },
+    {
+      "id": 2,
+      "name": "Stop_Sign"
+    }
+  ],
+  "info": {
+    "year": 2024,
+    "version": "1.0",
+    "contributor": "Label Studio"
+  }
+}
